@@ -1,0 +1,11 @@
+# Sweep c — nombre de particules par snapshot : N = 500, 2000, 10000.
+# Données : scripts/make_synthetic.py sur configs/synth_n500.yaml, synth_chiarella.yaml
+# et synth_n10000.yaml.
+
+base: configs/pinn_params.yaml
+
+grid:
+  data:
+    - data/synthetic/synth_n500.npz
+    - data/synthetic/synth_chiarella.npz
+    - data/synthetic/synth_n10000.npz

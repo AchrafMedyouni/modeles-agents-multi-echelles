@@ -1,0 +1,16 @@
+# Sweep a — compensation κ / σ : la variance stationnaire ne fixe que σ²/(2κ).
+# Fixer l'un des deux à sa vraie valeur doit lever l'ambiguïté sur l'autre.
+
+base: configs/pinn_params.yaml
+iterations: 15000
+
+runs:
+  - name: tout_inconnu
+  - name: sigma_fixe
+    set:
+      model.trainable: {kappa: 0.3, beta: 0.1}
+      model.fixed: {kappa3: 0.0, alpha: 1.0, gamma: 2.0, sigma: 0.5}
+  - name: kappa_fixe
+    set:
+      model.trainable: {beta: 0.1, sigma: 1.0}
+      model.fixed: {kappa3: 0.0, alpha: 1.0, gamma: 2.0, kappa: 1.0}

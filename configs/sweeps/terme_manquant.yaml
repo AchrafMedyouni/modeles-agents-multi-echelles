@@ -1,0 +1,19 @@
+# Sweep e — terme manquant de la demande des fondamentalistes, sur les données cubiques
+# (vraie f(δ) = −δ − 0.5 δ³). Forme polynomiale connue contre MLP f_θ, avec ou sans σ connu.
+# Sert à mesurer la compensation β / f_θ (corrélation entre l'erreur sur β et l'écart de f).
+
+base: configs/pinn_nn.yaml
+iterations: 30000
+seeds: [0, 1, 2]
+
+runs:
+  - name: polynome
+    set:
+      model.fundamental: linear
+      model.trainable: {kappa: 0.3, kappa3: 0.1, beta: 0.1, sigma: 1.0}
+      model.fixed: {alpha: 1.0, gamma: 2.0}
+  - name: mlp
+  - name: mlp_sigma_fixe
+    set:
+      model.trainable: {beta: 0.1}
+      model.fixed: {alpha: 1.0, gamma: 2.0, sigma: 0.5}

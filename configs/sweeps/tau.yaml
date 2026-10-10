@@ -1,0 +1,6 @@
+# Sweep d — poids τ du résidu de Fokker-Planck dans la loss.
+
+base: configs/pinn_params.yaml
+
+grid:
+  training.tau: [1.0, 10.0, 100.0]

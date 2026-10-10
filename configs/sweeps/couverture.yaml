@@ -1,0 +1,13 @@
+# Sweep g — couverture des données : MLP f_θ sur les données cubiques, condition initiale
+# étroite δ₀ ~ N(1, 0.3) ou large δ₀ ~ N(0, 1). On compare l'étendue de la zone couverte
+# et la RMSE de f dans cette zone.
+# Données : scripts/make_synthetic.py sur configs/synth_chiarella_cubic.yaml et
+# synth_chiarella_cubic_large.yaml.
+
+base: configs/pinn_nn.yaml
+iterations: 30000
+
+grid:
+  data:
+    - data/synthetic/synth_chiarella_cubic.npz
+    - data/synthetic/synth_chiarella_cubic_large.npz

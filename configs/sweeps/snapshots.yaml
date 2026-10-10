@@ -1,0 +1,10 @@
+# Sweep b — nombre d'instants observés : 5 ou 8 snapshots des mêmes particules,
+# densité validée à t_test = 1.25 (absent des deux jeux).
+# Données : scripts/make_synthetic.py sur configs/synth_snap5.yaml et synth_snap8.yaml.
+
+base: configs/pinn_params.yaml
+
+grid:
+  data:
+    - data/synthetic/synth_snap5.npz
+    - data/synthetic/synth_snap8.npz
