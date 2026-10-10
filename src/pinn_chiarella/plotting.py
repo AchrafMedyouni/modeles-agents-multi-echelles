@@ -25,7 +25,7 @@ BLUE_DARK = "#104281"
 ORANGE = "#eb6834"
 NEUTRAL_FILL = "#d9d8d3"
 BAND = "#efeeea"
-# Rampe séquentielle (clair -> foncé) pour une grandeur ordonnée, ici le temps.
+# Rampe séquentielle du bleu, du clair au foncé.
 BLUE_RAMP = ("#86b6ef", "#5598e7", "#2a78d6", "#1c5cab", "#0d366b")
 
 PARAM_LABELS = {"kappa": "κ", "kappa3": "κ₃", "beta": "β", "sigma": "σ", "alpha": "α", "gamma": "γ"}
@@ -164,15 +164,17 @@ def plot_parameter_convergence(log: dict[str, Any], path: Path) -> None:
         if has_mass:
             ax = axes[-1]
             mass = np.array([r["mass"] for r in history])
-            colors = [BLUE_RAMP[round(i)] for i in np.linspace(0, 4, mass.shape[1])]
             ax.axhline(1.0, color=INK_SECONDARY, lw=1.2, ls=(0, (4, 3)))
-            for values, t_i, color in zip(mass.T, log["t_obs"], colors, strict=True):
-                ax.plot(its, values, color=color, lw=1.5, label=f"t = {t_i:g}")
+            ax.fill_between(
+                its, mass.min(axis=1), mass.max(axis=1), color=BLUE_RAMP[0], alpha=0.6, lw=0
+            )
+            ax.plot(its, mass.mean(axis=1), color=BLUE, lw=1.2)
             ax.set_ylim(0.8, 1.2)
             ax.set_title("Masse totale de p̃ (cible : 1)")
-            ax.set_xlabel("itération")
+            ax.set_xlabel(
+                "itération\n(trait : moyenne sur les instants observés, bande : min à max)"
+            )
             ax.grid(axis="y", color=GRID, lw=0.6)
-            ax.legend(frameon=False, fontsize=8, ncols=2, loc="lower right")
 
         fig.suptitle(
             f"Convergence des paramètres — {log['iterations']} itérations, τ = {tau:g}, "
@@ -329,8 +331,13 @@ def plot_sweep_demand(logs: list[dict[str, Any]], path: Path) -> None:
             rmse = np.mean([log["demand"]["rmse_data_range"] for log in case_logs])
             ax.set_title(f"{case}\nRMSE dans la zone : {rmse:.3f}", fontsize=10)
             ax.set_xlabel("δ = P − V")
-            pad = 0.1 * (true.max() - true.min())
-            ax.set_ylim(true.min() - pad, true.max() + pad)
+            # Cadrage sur la zone couverte, élargie de moitié de chaque côté : au-delà, la
+            # vraie f (cubique) écraserait l'échelle.
+            half = 0.5 * (d_hi - d_lo)
+            shown = true[(delta >= d_lo - half) & (delta <= d_hi + half)]
+            pad = 0.1 * (shown.max() - shown.min())
+            ax.set_xlim(max(delta[0], d_lo - half), min(delta[-1], d_hi + half))
+            ax.set_ylim(shown.min() - pad, shown.max() + pad)
         axes[0, 0].set_ylabel("f(δ)")
         axes[0, 0].legend(frameon=False, fontsize=8, loc="upper right")
         fig.suptitle(

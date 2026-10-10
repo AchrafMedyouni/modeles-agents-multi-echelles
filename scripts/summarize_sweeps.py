@@ -53,12 +53,14 @@ def run_table(logs: list[dict]) -> list[str]:
             row.append(f"{ratio:.3f} ({(ratio - true) / true:+.1%})")
         demand = log["demand"]
         l_pde = np.mean([r["L_pde"] for r in log["history"][-10:]])
+        # La masse fluctue d'une itération à l'autre : moyenne sur les derniers enregistrements.
+        mass = np.mean([r["mass"] for r in log["history"][-10:]], axis=0)
         row += [
             f"{demand['rmse_data_range']:.3f}",
             f"{relative_rmse(log):.1%}",
             f"{demand['gain_data_range']:.3f}",
             f"[{demand['data_range'][0]:.2f}, {demand['data_range'][1]:.2f}]",
-            f"{min(log['final_mass']):.3f} à {max(log['final_mass']):.3f}",
+            f"{mass.min():.3f} à {mass.max():.3f}",
             f"{log['test_nll']:.3f}",
             f"{l_pde:.1e}",
         ]
@@ -131,8 +133,9 @@ def main() -> None:
         "par les données (percentiles 1 à 99 de δ), en valeur absolue et rapportée à la moyenne "
         "quadratique de la vraie f ; gain f = projection de f apprise sur la vraie f dans cette "
         "zone (1 = rappel retrouvé, < 1 = sous-estimé) ; masse de p̃ aux instants observés "
-        "(min à max, cible 1) ; NLL du snapshot de test (comparable seulement entre runs de même "
-        "jeu de test) ; L_pde moyennée sur les 1000 dernières itérations.",
+        "(min à max entre instants, cible 1) ; NLL du snapshot de test (comparable seulement "
+        "entre runs de même jeu de test). Masse et L_pde sont moyennées sur les 1000 dernières "
+        "itérations.",
         "",
     ]
     for name in args.sweeps:
