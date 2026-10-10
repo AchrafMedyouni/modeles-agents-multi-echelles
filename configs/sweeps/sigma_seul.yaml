@@ -1,0 +1,13 @@
+# Sweep sigma_seul — test décisif du biais de σ, régime stable : κ et β fixés à leurs vraies
+# valeurs, seul σ est appris. Si σ reste sous-estimé d'environ 10 %, le biais vient de
+# l'opérateur de diffusion ou de l'optimisation ; sinon, de la compensation avec le drift.
+
+base: configs/pinn_params.yaml
+iterations: 15000
+seeds: [0, 1]
+
+runs:
+  - name: sigma_seul
+    set:
+      model.trainable: {sigma: 1.0}
+      model.fixed: {kappa3: 0.0, alpha: 1.0, gamma: 2.0, kappa: 1.0, beta: 0.5}

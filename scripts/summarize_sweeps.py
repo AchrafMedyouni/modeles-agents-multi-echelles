@@ -120,6 +120,7 @@ def sweep_section(name: str, logs: list[dict]) -> list[str]:
         stable = load_sweep_logs(ROOT / "experiments" / "kappa_sigma")
         if stable:
             lines += regime_comparison(stable, logs)
+        lines += jacobian_table(logs)
         for log in logs:
             if (ROOT / "experiments" / name / log["run"] / "densite_temps.png").exists():
                 lines.append(
@@ -157,6 +158,34 @@ def regime_comparison(stable: list[dict], unstable: list[dict]) -> list[str]:
             true = truth["sigma"] ** 2 / (2 * truth["kappa"])
             cells.append(f"{(ratio - true) / true:+.1%}")
             lines.append(f"| {log['case']} | {regime} | " + " | ".join(cells) + " |")
+    return [*lines, ""]
+
+
+def jacobian_table(logs: list[dict]) -> list[str]:
+    """Marge d'instabilité et déterminant de la jacobienne en (0, 0), appris contre vrais.
+
+    Jacobienne du drift linéarisé : trace = −(α + κ − αβγ) (taux de croissance), déterminant
+    = ακ (avec la trace, fixe la fréquence des oscillations).
+    """
+    lines = [
+        "Linéarisation en (0, 0) : marge α + κ − αβγ (opposé de la trace, taux de croissance) "
+        "et déterminant ακ (fréquence).",
+        "",
+        "| run | marge apprise | marge vraie | écart | déterminant appris | déterminant vrai "
+        "| erreur |",
+        "|---|---|---|---|---|---|---|",
+    ]
+    for log in logs:
+        v = {**log["fixed"], **log["final"]}
+        t = {**log["fixed"], **log["true"]}
+        margin, margin_true = (
+            p["alpha"] + p["kappa"] - p["alpha"] * p["beta"] * p["gamma"] for p in (v, t)
+        )
+        det, det_true = v["alpha"] * v["kappa"], t["alpha"] * t["kappa"]
+        lines.append(
+            f"| {log['run']} | {margin:+.3f} | {margin_true:+.3f} | {margin - margin_true:+.3f} | "
+            f"{det:.3f} | {det_true:.3f} | {(det - det_true) / det_true:+.1%} |"
+        )
     return [*lines, ""]
 
 
