@@ -28,6 +28,9 @@ experiments/*
 *.pt
 *.npz
 
+# Articles de référence (non redistribués : dépôt public)
+docs/*.pdf
+
 # Notebooks, système, éditeurs
 .ipynb_checkpoints/
 .DS_Store
