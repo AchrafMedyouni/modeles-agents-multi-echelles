@@ -57,10 +57,15 @@ class DensityNet(nn.Module):
         return nn.functional.softplus(self.net(torch.cat([xn, tn], dim=1)))
 
     @torch.no_grad()
-    def total_mass(self, t: float, n_grid: int = 200) -> float:
-        """Masse totale ∫ p̃(x, t) dx sur le domaine, par trapèzes sur une grille n_grid².
+    def moments(
+        self, t: float, n_grid: int = 200
+    ) -> tuple[float, tuple[float, float], tuple[float, float]]:
+        """Masse, moyenne et variance de p̃(·, t) sur le domaine, par trapèzes sur une grille.
 
-        Vaut 1 pour une densité exacte : c'est un indicateur de convergence.
+        La moyenne et la variance sont celles de la densité normalisée p̃ / masse.
+
+        Renvoie :
+            (masse, (moyenne de δ, moyenne de M), (variance de δ, variance de M)).
         """
         axes = [
             torch.linspace(float(a), float(b), n_grid, device=self.lo.device)
@@ -70,7 +75,24 @@ class DensityNet(nn.Module):
         x = torch.stack([dd.flatten(), mm.flatten()], dim=1)
         p = self(x, torch.full((x.shape[0], 1), float(t), device=x.device))
         p = p.reshape(n_grid, n_grid)
-        return float(torch.trapezoid(torch.trapezoid(p, axes[1], dim=1), axes[0], dim=0))
+
+        def integrate(values: torch.Tensor) -> float:
+            return float(torch.trapezoid(torch.trapezoid(values, axes[1], dim=1), axes[0], dim=0))
+
+        mass = integrate(p)
+        means = (integrate(p * dd) / mass, integrate(p * mm) / mass)
+        variances = (
+            integrate(p * (dd - means[0]) ** 2) / mass,
+            integrate(p * (mm - means[1]) ** 2) / mass,
+        )
+        return mass, means, variances
+
+    def total_mass(self, t: float, n_grid: int = 200) -> float:
+        """Masse totale ∫ p̃(x, t) dx sur le domaine, par trapèzes sur une grille n_grid².
+
+        Vaut 1 pour une densité exacte : c'est un indicateur de convergence.
+        """
+        return self.moments(t, n_grid)[0]
 
 
 class DemandNet(nn.Module):

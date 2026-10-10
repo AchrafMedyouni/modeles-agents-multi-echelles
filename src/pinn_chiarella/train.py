@@ -201,3 +201,23 @@ def train(
 def _write_log(log: dict[str, Any], out_dir: Path) -> None:
     """Écrit le log JSON de l'expérience."""
     (out_dir / "log.json").write_text(json.dumps(log, indent=1), encoding="utf-8")
+
+
+def load_run(out_dir: Path, root: Path) -> tuple[ChiarellaPINN, SyntheticDataset]:
+    """Recharge le modèle entraîné et les données d'un run terminé.
+
+    Arguments :
+        out_dir : dossier du run (contient config.yaml et model.pt).
+        root : racine du dépôt (le champ `data` de la config lui est relatif).
+    """
+    config = yaml.safe_load((out_dir / "config.yaml").read_text(encoding="utf-8"))
+    dataset = load_synthetic(root / config["data"])
+    lo, hi = data_domain(dataset.snapshots, float(config["model"].get("margin", 0.5)))
+    model = build_model(
+        config["model"],
+        torch.tensor(lo, dtype=torch.float32),
+        torch.tensor(hi, dtype=torch.float32),
+        float(dataset.t_obs.max()),
+    )
+    model.load_state_dict(torch.load(out_dir / "model.pt", map_location="cpu"))
+    return model.eval(), dataset

@@ -13,6 +13,7 @@ import numpy as np
 
 from pinn_chiarella.plotting import plot_sweep_demand
 from pinn_chiarella.sweeps import beta_demand_correlation, load_sweep_logs, relative_errors
+from pinn_chiarella.train import load_run
 
 ROOT = Path(__file__).resolve().parents[1]
 PARAMS = {"kappa": "κ", "kappa3": "κ₃", "beta": "β", "sigma": "σ"}
@@ -121,9 +122,60 @@ def sweep_section(name: str, logs: list[dict]) -> list[str]:
     return lines
 
 
+def variance_section(runs: list[str]) -> list[str]:
+    """Diagnostic du biais de σ : écart-type de δ et de M sous p̃ contre celui des données.
+
+    Pour chaque run et chaque instant observé, rapport (écart-type sous p̃, intégré sur la
+    grille) / (écart-type empirique des données). Un rapport < 1 signifie que p̃ est trop
+    étroite.
+    """
+    lines = [
+        "## Diagnostic du biais de σ : largeur de p̃ contre largeur des données",
+        "",
+        "Rapport entre l'écart-type sous p̃ (densité normalisée, intégrée sur la grille du "
+        "domaine) et l'écart-type empirique des données, à chaque instant observé. "
+        "Un rapport inférieur à 1 signifie que p̃ est plus étroite que les données.",
+        "",
+    ]
+    results = {}
+    for run in runs:
+        model, dataset = load_run(ROOT / "experiments" / run, ROOT)
+        moments = [model.density.moments(float(t)) for t in dataset.t_obs]
+        std_model = np.sqrt([m[2] for m in moments])
+        results[run] = (dataset.t_obs, std_model / dataset.snapshots.std(axis=1))
+    for col, name in enumerate(("δ", "M")):
+        t_obs = next(iter(results.values()))[0]
+        header = ["run", *(f"t = {t:g}" for t in t_obs), "moyenne"]
+        lines += [f"Écart-type de {name} : p̃ / données", ""]
+        lines += ["| " + " | ".join(header) + " |", "|" + "---|" * len(header)]
+        for run, (_, ratio) in results.items():
+            cells = [f"{r:.3f}" for r in ratio[:, col]]
+            lines.append(f"| {run} | " + " | ".join(cells) + f" | {ratio[:, col].mean():.3f} |")
+        lines.append("")
+    ratios = np.concatenate([ratio.ravel() for _, ratio in results.values()])
+    lines += [
+        f"Sur l'ensemble : rapport moyen {ratios.mean():.3f}, de {ratios.min():.3f} à "
+        f"{ratios.max():.3f}. "
+        + (
+            "p̃ est systématiquement plus étroite que les données."
+            if ratios.mean() < 0.97
+            else "p̃ n'est pas systématiquement plus étroite que les données : la sous-estimation "
+            "de σ ne vient pas de la largeur de p̃ aux instants observés (loss données, domaine)."
+        ),
+        "",
+    ]
+    return lines
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("sweeps", nargs="+", help="noms des sweeps (dossiers de experiments/)")
+    parser.add_argument(
+        "--variance-runs",
+        nargs="*",
+        default=[],
+        help="runs (<sweep>/<run>) pour le diagnostic de largeur de p̃ contre les données",
+    )
     args = parser.parse_args()
 
     lines = [
@@ -144,6 +196,8 @@ def main() -> None:
             lines += [f"## {name}", "", "Aucun run terminé.", ""]
             continue
         lines += sweep_section(name, logs)
+    if args.variance_runs:
+        lines += variance_section(args.variance_runs)
     out = ROOT / "experiments" / "summary_sweeps.md"
     out.write_text("\n".join(lines), encoding="utf-8")
     print(out)
