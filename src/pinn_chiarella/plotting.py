@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
+import torch  # noqa: E402
 
 from pinn_chiarella.data import SyntheticDataset  # noqa: E402
+from pinn_chiarella.models import ChiarellaPINN  # noqa: E402
 
 SURFACE = "#fcfcfb"
 INK = "#0b0b0b"
@@ -19,6 +22,11 @@ MUTED = "#898781"
 GRID = "#e6e5e1"
 BLUE = "#2a78d6"
 BLUE_DARK = "#104281"
+ORANGE = "#eb6834"
+NEUTRAL_FILL = "#d9d8d3"
+BAND = "#efeeea"
+
+PARAM_LABELS = {"kappa": "κ", "kappa3": "κ₃", "beta": "β", "sigma": "σ", "alpha": "α", "gamma": "γ"}
 
 STYLE = {
     "figure.facecolor": SURFACE,
@@ -46,6 +54,10 @@ def plot_synthetic_check(dataset: SyntheticDataset, path: Path, n_paths: int = 4
     À gauche : quelques trajectoires de δ et de M, leur moyenne empirique et les instants
     observés. À droite : histogramme de δ à chaque instant observé (même axe horizontal).
     """
+    if dataset.paths is None or dataset.t_paths is None:
+        raise ValueError(
+            "La figure de contrôle a besoin des trajectoires (jeu fraîchement simulé)."
+        )
     t, paths = dataset.t_paths, dataset.paths
     t_obs, snaps = dataset.t_obs, dataset.snapshots
     n_obs = len(t_obs)
@@ -96,6 +108,167 @@ def plot_synthetic_check(dataset: SyntheticDataset, path: Path, n_paths: int = 4
             f"Données synthétiques Chiarella — κ = {p['kappa']:g}, κ₃ = {p['kappa3']:g}, "
             f"β = {p['beta']:g}, σ = {p['sigma']:g}, α = {p['alpha']:g}, γ = {p['gamma']:g} ; "
             f"N = {paths.shape[1]}, dt = {dataset.dt:g}, seed = {dataset.seed}",
+            fontsize=10,
+            x=0.01,
+            ha="left",
+        )
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(path, dpi=150)
+        plt.close(fig)
+
+
+def plot_parameter_convergence(log: dict[str, Any], path: Path) -> None:
+    """Convergence des paramètres appris vers les vraies valeurs, et évolution des losses.
+
+    Un panneau par paramètre entraînable (valeur apprise et vraie valeur), puis un panneau
+    pour L_pde et un pour L_data.
+    """
+    history = log["history"]
+    its = np.array([r["it"] for r in history])
+    names = list(log["initial"])
+    panels = len(names) + 2
+
+    with plt.rc_context(STYLE):
+        fig, axes = plt.subplots(
+            1, panels, figsize=(3.3 * panels, 3.4), layout="constrained", squeeze=False
+        )
+        axes = axes[0]
+        for ax, name in zip(axes, names, strict=False):
+            values = np.array([r[name] for r in history])
+            true = log["true"][name]
+            ax.axhline(true, color=INK_SECONDARY, lw=1.2, ls=(0, (4, 3)), label="vraie valeur")
+            ax.plot(its, values, color=BLUE, lw=2, label="apprise")
+            err = (values[-1] - true) / true
+            ax.set_title(f"{PARAM_LABELS.get(name, name)}")
+            ax.text(
+                0.98,
+                0.05,
+                f"vrai {true:g}\nappris {values[-1]:.3f} ({err:+.0%})",
+                transform=ax.transAxes,
+                ha="right",
+                va="bottom",
+                fontsize=8,
+                color=INK_SECONDARY,
+            )
+            ax.set_xlabel("itération")
+            ax.grid(axis="y", color=GRID, lw=0.6)
+        axes[0].legend(frameon=False, fontsize=8, loc="upper right")
+
+        tau = log["tau"]
+        for ax, key, title in zip(
+            axes[len(names) :], ("L_pde", "L_data"), ("L_pde (résidu)", "L_data"), strict=True
+        ):
+            values = np.array([r[key] for r in history])
+            ax.plot(its, values, color=BLUE, lw=1.5)
+            ax.set_title(title)
+            ax.set_xlabel("itération")
+            ax.grid(axis="y", color=GRID, lw=0.6)
+        axes[len(names)].set_yscale("log")
+
+        fig.suptitle(
+            f"Convergence des paramètres — {log['iterations']} itérations, τ = {tau:g}, "
+            f"{log['duration_s']:.0f} s",
+            fontsize=10,
+            x=0.01,
+            ha="left",
+        )
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(path, dpi=150)
+        plt.close(fig)
+
+
+def plot_learned_demand(log: dict[str, Any], path: Path) -> None:
+    """Demande des fondamentalistes apprise contre la vraie, avec la zone couverte par les données.
+
+    La zone grisée va du percentile 1 au percentile 99 de δ sur l'ensemble des snapshots.
+    """
+    demand = log["demand"]
+    delta = np.array(demand["delta"])
+    d_lo, d_hi = demand["data_range"]
+
+    with plt.rc_context(STYLE):
+        fig, ax = plt.subplots(figsize=(7, 4.4), layout="constrained")
+        ax.axvspan(d_lo, d_hi, color=BAND, zorder=0)
+        ax.axhline(0.0, color=GRID, lw=1, zorder=1)
+        ax.plot(delta, demand["true"], color=INK_SECONDARY, lw=1.5, ls=(0, (4, 3)), label="vraie f")
+        ax.plot(delta, demand["learned"], color=BLUE, lw=2, label="f apprise")
+        ax.text(
+            0.5 * (d_lo + d_hi),
+            0.03,
+            "zone couverte par les données\n(percentiles 1 à 99 de δ)",
+            transform=ax.get_xaxis_transform(),
+            ha="center",
+            va="bottom",
+            fontsize=8,
+            color=INK_SECONDARY,
+        )
+        ax.set_xlabel("δ = P − V")
+        ax.set_ylabel("f(δ)")
+        ax.set_title(
+            "Demande des fondamentalistes : apprise et vraie "
+            f"(RMSE dans la zone : {demand['rmse_data_range']:.3f})"
+        )
+        ax.legend(frameon=False, loc="upper right")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(path, dpi=150)
+        plt.close(fig)
+
+
+def density_marginals(
+    model: ChiarellaPINN, t: float, n_grid: int = 200
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, float]:
+    """Marginales en δ et en M de la densité PINN à l'instant t, par intégration sur une grille.
+
+    Renvoie (grille δ, marginale δ, grille M, marginale M, masse totale ∫p̃).
+    """
+    density = model.density
+    d = torch.linspace(float(density.lo[0]), float(density.hi[0]), n_grid, device=density.lo.device)
+    m = torch.linspace(float(density.lo[1]), float(density.hi[1]), n_grid, device=density.lo.device)
+    dd, mm = torch.meshgrid(d, m, indexing="ij")
+    x = torch.stack([dd.flatten(), mm.flatten()], dim=1)
+    with torch.no_grad():
+        p = density(x, torch.full((x.shape[0], 1), float(t), device=x.device))
+    p = p.reshape(n_grid, n_grid).cpu().numpy()
+    d_np, m_np = d.cpu().numpy(), m.cpu().numpy()
+    marg_d = np.trapezoid(p, m_np, axis=1)
+    marg_m = np.trapezoid(p, d_np, axis=0)
+    return d_np, marg_d, m_np, marg_m, float(np.trapezoid(marg_d, d_np))
+
+
+def plot_density_check(model: ChiarellaPINN, dataset: SyntheticDataset, path: Path) -> None:
+    """Densité PINN contre histogramme Monte-Carlo à l'instant non observé t_test.
+
+    Marginales en δ et en M : la densité PINN est intégrée sur l'autre variable.
+    """
+    d, marg_d, m, marg_m, mass = density_marginals(model, dataset.t_test)
+    test = dataset.test_snapshot
+
+    with plt.rc_context(STYLE):
+        fig, axes = plt.subplots(1, 2, figsize=(10, 4), layout="constrained", sharey=True)
+        for ax, grid, marg, samples, name in zip(
+            axes,
+            (d, m),
+            (marg_d, marg_m),
+            (test[:, 0], test[:, 1]),
+            ("δ = P − V", "M"),
+            strict=True,
+        ):
+            ax.hist(
+                samples,
+                bins=60,
+                density=True,
+                color=NEUTRAL_FILL,
+                edgecolor=SURFACE,
+                linewidth=0.3,
+                label=f"Monte-Carlo ({len(samples)} particules)",
+            )
+            ax.plot(grid, marg, color=BLUE, lw=2, label="PINN (marginale)")
+            ax.set_xlabel(name)
+        axes[0].set_ylabel("densité")
+        axes[0].legend(frameon=False, fontsize=8, loc="upper left")
+        fig.suptitle(
+            f"Densité à l'instant non observé t = {dataset.t_test:g} — "
+            f"masse totale de la densité PINN : {mass:.3f}",
             fontsize=10,
             x=0.01,
             ha="left",
