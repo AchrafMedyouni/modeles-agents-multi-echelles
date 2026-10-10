@@ -18,7 +18,7 @@ import torch
 import yaml
 
 from pinn_chiarella.data import SyntheticDataset, load_synthetic
-from pinn_chiarella.losses import data_loss, pde_loss, sample_uniform
+from pinn_chiarella.losses import LOG_EPS, data_loss, pde_loss, sample_uniform
 from pinn_chiarella.models import ChiarellaPINN, build_model
 from pinn_chiarella.sde import fundamental_demand
 
@@ -60,7 +60,9 @@ def demand_profile(model: ChiarellaPINN, dataset: SyntheticDataset, n: int = 200
     """Demande des fondamentalistes apprise et vraie sur une grille couvrant le domaine de δ.
 
     Renvoie la grille, f apprise, f vraie, la zone couverte par les données (percentiles
-    1 et 99 de δ) et l'erreur quadratique moyenne dans cette zone.
+    1 et 99 de δ) et, dans cette zone, l'erreur quadratique moyenne et le gain de f apprise
+    (projection sur la vraie f : ⟨f, f_vraie⟩ / ⟨f_vraie, f_vraie⟩ ; 1 si le rappel est
+    retrouvé, < 1 s'il est sous-estimé).
     """
     density = model.density
     grid = torch.linspace(float(density.lo[0]), float(density.hi[0]), n, device=density.lo.device)
@@ -76,7 +78,20 @@ def demand_profile(model: ChiarellaPINN, dataset: SyntheticDataset, n: int = 200
         "true": true.tolist(),
         "data_range": [float(d_lo), float(d_hi)],
         "rmse_data_range": float(np.sqrt(np.mean((learned - true)[inside] ** 2))),
+        "gain_data_range": float(np.sum((learned * true)[inside]) / np.sum(true[inside] ** 2)),
     }
+
+
+def test_nll(model: ChiarellaPINN, dataset: SyntheticDataset, device: torch.device) -> float:
+    """Log-vraisemblance négative moyenne du snapshot de test (instant non observé) sous p̃.
+
+    Plus elle est basse, mieux la densité apprise prédit l'instant non observé. Elle ne se
+    compare qu'entre runs partageant le même snapshot de test.
+    """
+    x = torch.tensor(dataset.test_snapshot, dtype=torch.float32, device=device)
+    t = torch.full((x.shape[0], 1), dataset.t_test, device=device)
+    with torch.no_grad():
+        return float(-torch.log(model.density(x, t) + LOG_EPS).mean())
 
 
 def train(
@@ -85,6 +100,7 @@ def train(
     out_dir: Path,
     iterations: int | None = None,
     verbose: bool = True,
+    extra_log: dict[str, Any] | None = None,
 ) -> TrainResult:
     """Entraîne le PINN décrit par `config` sur le jeu de données `data_path`.
 
@@ -94,6 +110,7 @@ def train(
         out_dir : dossier de sortie (créé si besoin).
         iterations : remplace `training.iterations` (runs courts, tests).
         verbose : affiche l'avancement toutes les 1000 itérations.
+        extra_log : champs ajoutés tels quels au log (par exemple le cas d'un sweep).
     """
     cfg_model, cfg_train = config["model"], config["training"]
     seed = int(config["seed"])
@@ -127,8 +144,10 @@ def train(
     )
     initial = model.params.trainable_values()
     log: dict[str, Any] = {
+        **(extra_log or {}),
         "seed": seed,
         "data": str(data_path),
+        "n_samples": int(dataset.snapshots.shape[1]),
         "iterations": n_iter,
         "tau": tau,
         "true": {name: dataset.true_params[name] for name in initial},
@@ -173,6 +192,7 @@ def train(
     log["final"] = model.params.trainable_values()
     log["final_mass"] = [model.density.total_mass(t) for t in dataset.t_obs]
     log["demand"] = demand_profile(model, dataset)
+    log["test_nll"] = test_nll(model, dataset, device)
     _write_log(log, out_dir)
     torch.save(model.state_dict(), out_dir / "model.pt")
     return TrainResult(model=model, log=log, dataset=dataset, out_dir=out_dir)
