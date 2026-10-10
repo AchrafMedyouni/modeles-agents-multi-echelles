@@ -56,6 +56,22 @@ class DensityNet(nn.Module):
         tn = 2 * t / self.t_max - 1
         return nn.functional.softplus(self.net(torch.cat([xn, tn], dim=1)))
 
+    @torch.no_grad()
+    def total_mass(self, t: float, n_grid: int = 200) -> float:
+        """Masse totale ∫ p̃(x, t) dx sur le domaine, par trapèzes sur une grille n_grid².
+
+        Vaut 1 pour une densité exacte : c'est un indicateur de convergence.
+        """
+        axes = [
+            torch.linspace(float(a), float(b), n_grid, device=self.lo.device)
+            for a, b in zip(self.lo, self.hi, strict=True)
+        ]
+        dd, mm = torch.meshgrid(*axes, indexing="ij")
+        x = torch.stack([dd.flatten(), mm.flatten()], dim=1)
+        p = self(x, torch.full((x.shape[0], 1), float(t), device=x.device))
+        p = p.reshape(n_grid, n_grid)
+        return float(torch.trapezoid(torch.trapezoid(p, axes[1], dim=1), axes[0], dim=0))
+
 
 class DemandNet(nn.Module):
     """MLP f_θ(δ) : demande des fondamentalistes apprise (terme manquant)."""

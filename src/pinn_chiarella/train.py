@@ -1,7 +1,8 @@
 """Boucle d'entraînement du PINN Fokker-Planck, pilotée par une config YAML.
 
 Loss : L = τ·L_pde + Σ_i L_data(t_i). Les sorties vont dans experiments/<nom>/ :
-config copiée, log JSON (toutes les `log_every` itérations) et poids du modèle.
+config copiée, log JSON (toutes les `log_every` itérations : losses, paramètres, masse totale
+de p̃ aux instants observés) et poids du modèle.
 """
 
 from __future__ import annotations
@@ -134,6 +135,7 @@ def train(
         "initial": initial,
         "fixed": model.params.fixed,
         "domain": {"lo": lo_np.tolist(), "hi": hi_np.tolist(), "t_max": t_max},
+        "t_obs": dataset.t_obs.tolist(),
         "history": [],
     }
 
@@ -158,6 +160,7 @@ def train(
                 "L_data": l_data.item(),
                 "loss": loss.item(),
                 **model.params.trainable_values(),
+                "mass": [model.density.total_mass(t) for t in dataset.t_obs],
             }
             log["history"].append(record)
             log["duration_s"] = time.perf_counter() - start
@@ -168,6 +171,7 @@ def train(
 
     log["duration_s"] = time.perf_counter() - start
     log["final"] = model.params.trainable_values()
+    log["final_mass"] = [model.density.total_mass(t) for t in dataset.t_obs]
     log["demand"] = demand_profile(model, dataset)
     _write_log(log, out_dir)
     torch.save(model.state_dict(), out_dir / "model.pt")

@@ -43,6 +43,8 @@ def main() -> None:
     print(f"Terminé en {log['duration_s']:.0f} s — sorties dans {out_dir}")
     for name, value in log["final"].items():
         print(f"  {name:<6} appris {value:.4f}   vrai {log['true'][name]:g}")
+    masses = "  ".join(f"{m:.3f}" for m in log["final_mass"])
+    print(f"  masse de p̃ aux instants observés (cible 1) : {masses}")
 
 
 if __name__ == "__main__":

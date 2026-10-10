@@ -44,6 +44,11 @@ def run_section(name: str, log: dict) -> list[str]:
             "est mieux retrouvé que κ et σ séparément.",
             "",
         ]
+    if "final_mass" in log:
+        masses = ", ".join(
+            f"{m:.3f} (t = {t:g})" for t, m in zip(log["t_obs"], log["final_mass"], strict=True)
+        )
+        lines += [f"Masse totale de p̃ aux instants observés (cible : 1) : {masses}.", ""]
     demand = log["demand"]
     d_lo, d_hi = demand["data_range"]
     lines += [

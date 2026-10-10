@@ -108,5 +108,10 @@ def test_200_iterations_font_decroitre_la_loss(tmp_path):
     assert np.all(np.isfinite(losses))
     assert np.mean(losses[-3:]) < np.mean(losses[:3])
     assert result.log["final"] != result.log["initial"]
+    masses = np.array([r["mass"] for r in result.log["history"]])
+    assert masses.shape == (len(losses), 3)
+    assert np.all(masses > 0)
+    # La masse de p̃ aux instants observés se rapproche de 1 pendant l'entraînement.
+    assert np.abs(masses[-1] - 1).max() < np.abs(masses[0] - 1).max()
     for name in ("config.yaml", "log.json", "model.pt"):
         assert (tmp_path / "run" / name).exists()

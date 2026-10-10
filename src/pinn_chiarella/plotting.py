@@ -25,6 +25,8 @@ BLUE_DARK = "#104281"
 ORANGE = "#eb6834"
 NEUTRAL_FILL = "#d9d8d3"
 BAND = "#efeeea"
+# Rampe séquentielle (clair -> foncé) pour une grandeur ordonnée, ici le temps.
+BLUE_RAMP = ("#86b6ef", "#5598e7", "#2a78d6", "#1c5cab", "#0d366b")
 
 PARAM_LABELS = {"kappa": "κ", "kappa3": "κ₃", "beta": "β", "sigma": "σ", "alpha": "α", "gamma": "γ"}
 
@@ -120,13 +122,15 @@ def plot_synthetic_check(dataset: SyntheticDataset, path: Path, n_paths: int = 4
 def plot_parameter_convergence(log: dict[str, Any], path: Path) -> None:
     """Convergence des paramètres appris vers les vraies valeurs, et évolution des losses.
 
-    Un panneau par paramètre entraînable (valeur apprise et vraie valeur), puis un panneau
-    pour L_pde et un pour L_data.
+    Un panneau par paramètre entraînable (valeur apprise et vraie valeur), un panneau pour
+    L_pde, un pour L_data, et un pour la masse totale de p̃ aux instants observés (qui doit
+    tendre vers 1) si le log la contient.
     """
     history = log["history"]
     its = np.array([r["it"] for r in history])
     names = list(log["initial"])
-    panels = len(names) + 2
+    has_mass = "mass" in history[0]
+    panels = len(names) + 2 + has_mass
 
     with plt.rc_context(STYLE):
         fig, axes = plt.subplots(
@@ -148,7 +152,7 @@ def plot_parameter_convergence(log: dict[str, Any], path: Path) -> None:
 
         tau = log["tau"]
         for ax, key, title in zip(
-            axes[len(names) :], ("L_pde", "L_data"), ("L_pde (résidu)", "L_data"), strict=True
+            axes[len(names) :], ("L_pde", "L_data"), ("L_pde (résidu)", "L_data"), strict=False
         ):
             values = np.array([r[key] for r in history])
             ax.plot(its, values, color=BLUE, lw=1.5)
@@ -156,6 +160,19 @@ def plot_parameter_convergence(log: dict[str, Any], path: Path) -> None:
             ax.set_xlabel("itération")
             ax.grid(axis="y", color=GRID, lw=0.6)
         axes[len(names)].set_yscale("log")
+
+        if has_mass:
+            ax = axes[-1]
+            mass = np.array([r["mass"] for r in history])
+            colors = [BLUE_RAMP[round(i)] for i in np.linspace(0, 4, mass.shape[1])]
+            ax.axhline(1.0, color=INK_SECONDARY, lw=1.2, ls=(0, (4, 3)))
+            for values, t_i, color in zip(mass.T, log["t_obs"], colors, strict=True):
+                ax.plot(its, values, color=color, lw=1.5, label=f"t = {t_i:g}")
+            ax.set_ylim(0.8, 1.2)
+            ax.set_title("Masse totale de p̃ (cible : 1)")
+            ax.set_xlabel("itération")
+            ax.grid(axis="y", color=GRID, lw=0.6)
+            ax.legend(frameon=False, fontsize=8, ncols=2, loc="lower right")
 
         fig.suptitle(
             f"Convergence des paramètres — {log['iterations']} itérations, τ = {tau:g}, "
