@@ -103,4 +103,4 @@ pytest -q
 - Un commit = un changement cohérent. Ne jamais committer si `pytest` échoue.
 - Lance `ruff check` et `ruff format` avant chaque commit.
 - Ne jamais committer de données, de poids de modèle ni de résultats d'expérience.
-- Ne pas faire de push (pas de remote pour l'instant).
+- Remote `origin` : https://github.com/AchrafMedyouni/modeles-agents-multi-echelles (dépôt public). Ne pousser que sur demande explicite de l'utilisateur.
