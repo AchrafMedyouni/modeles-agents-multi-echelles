@@ -33,7 +33,8 @@ class SyntheticDataset:
         seed : graine utilisée.
         dt : pas de temps de la simulation.
         paths : tableau (len(t_paths), N, 2), trajectoires des mêmes particules que
-            `snapshots`, sur une grille fine (figure de contrôle uniquement).
+            `snapshots`, sur une grille fine (figure de contrôle uniquement ; absent d'un
+            jeu rechargé depuis le disque).
         t_paths : instants de `paths`.
     """
 
@@ -44,8 +45,8 @@ class SyntheticDataset:
     true_params: dict[str, float]
     seed: int
     dt: float
-    paths: np.ndarray
-    t_paths: np.ndarray
+    paths: np.ndarray | None = None
+    t_paths: np.ndarray | None = None
 
 
 def generate_synthetic(config: dict[str, Any]) -> SyntheticDataset:
@@ -98,3 +99,17 @@ def save_synthetic(dataset: SyntheticDataset, path: Path) -> None:
         dt=dataset.dt,
         **{f"true_{name}": value for name, value in dataset.true_params.items()},
     )
+
+
+def load_synthetic(path: Path) -> SyntheticDataset:
+    """Recharge un jeu de données écrit par `save_synthetic`."""
+    with np.load(path) as npz:
+        return SyntheticDataset(
+            snapshots=npz["snapshots"],
+            t_obs=npz["t_obs"],
+            test_snapshot=npz["test_snapshot"],
+            t_test=float(npz["t_test"]),
+            true_params={k[5:]: float(npz[k]) for k in npz.files if k.startswith("true_")},
+            seed=int(npz["seed"]),
+            dt=float(npz["dt"]),
+        )
