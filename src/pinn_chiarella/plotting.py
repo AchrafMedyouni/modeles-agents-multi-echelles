@@ -292,3 +292,53 @@ def plot_density_check(model: ChiarellaPINN, dataset: SyntheticDataset, path: Pa
         path.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(path, dpi=150)
         plt.close(fig)
+
+
+def plot_sweep_demand(logs: list[dict[str, Any]], path: Path) -> None:
+    """Demande des fondamentalistes apprise contre la vraie, pour les runs d'un sweep.
+
+    Un panneau par cas ; les seeds d'un même cas sont superposées. La zone grisée est la
+    zone couverte par les données du cas (percentiles 1 à 99 de δ).
+    """
+    cases: dict[str, list[dict[str, Any]]] = {}
+    for log in logs:
+        cases.setdefault(log["case"], []).append(log)
+
+    with plt.rc_context(STYLE):
+        fig, axes = plt.subplots(
+            1, len(cases), figsize=(4.6 * len(cases), 4), layout="constrained", squeeze=False
+        )
+        for ax, (case, case_logs) in zip(axes[0], cases.items(), strict=True):
+            demand = case_logs[0]["demand"]
+            delta, true = np.array(demand["delta"]), np.array(demand["true"])
+            d_lo, d_hi = demand["data_range"]
+            ax.axvspan(d_lo, d_hi, color=BAND, zorder=0)
+            ax.axhline(0.0, color=GRID, lw=1, zorder=1)
+            ax.plot(delta, true, color=INK_SECONDARY, lw=1.5, ls=(0, (4, 3)), label="vraie f")
+            for i, log in enumerate(case_logs):
+                ax.plot(
+                    log["demand"]["delta"],
+                    log["demand"]["learned"],
+                    color=BLUE,
+                    lw=1.5,
+                    alpha=0.8,
+                    label="f apprise" + (" (une courbe par seed)" if len(case_logs) > 1 else "")
+                    if i == 0
+                    else None,
+                )
+            rmse = np.mean([log["demand"]["rmse_data_range"] for log in case_logs])
+            ax.set_title(f"{case}\nRMSE dans la zone : {rmse:.3f}", fontsize=10)
+            ax.set_xlabel("δ = P − V")
+            pad = 0.1 * (true.max() - true.min())
+            ax.set_ylim(true.min() - pad, true.max() + pad)
+        axes[0, 0].set_ylabel("f(δ)")
+        axes[0, 0].legend(frameon=False, fontsize=8, loc="upper right")
+        fig.suptitle(
+            "Demande des fondamentalistes par cas (zone grisée : couverte par les données)",
+            fontsize=10,
+            x=0.01,
+            ha="left",
+        )
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(path, dpi=150)
+        plt.close(fig)

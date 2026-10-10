@@ -63,11 +63,14 @@ src/pinn_chiarella/
   train.py            boucle d'entraînement, lecture d'une config
   data.py             chargement/prétraitement (synthétique, Telefonica) -> snapshots
   plotting.py         figures standard
+  sweeps.py           séries de runs : variations d'une config de base, résumé
 scripts/              points d'entrée en ligne de commande, fins (la logique vit dans le package)
 configs/*.yaml        une config par expérience (vrais params si synthétique, τ, lr, itérations, seed)
+configs/sweeps/*.yaml un sweep = une config de base + les champs à faire varier (grille ou liste), seeds
 tests/                tests pytest
 data/                 raw/ (ne jamais modifier), processed/, synthetic/ — non versionnés
 experiments/<nom>/    sorties : config copiée, log JSON, figures, poids — non versionnées
+experiments/<sweep>/<run>/   idem pour chaque run d'un sweep
 ```
 
 ## Règles de travail
@@ -90,6 +93,8 @@ pip install -e ".[dev]"
 python scripts/make_synthetic.py --config configs/synth_chiarella.yaml
 python scripts/train.py --config configs/pinn_params.yaml     # ajouter --iterations 500 pour un run court
 python scripts/summarize.py pinn_params pinn_nn             # écrit experiments/summary.md
+python scripts/sweep.py --config configs/sweeps/tau.yaml --jobs 4   # série de runs (4 en parallèle max sur ce Mac)
+python scripts/summarize_sweeps.py tau kappa_sigma          # écrit experiments/summary_sweeps.md
 pytest -q
 ```
 

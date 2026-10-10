@@ -20,6 +20,8 @@ Python ≥ 3.10.
 python scripts/make_synthetic.py --config configs/synth_chiarella.yaml   # données synthétiques
 python scripts/train.py --config configs/pinn_params.yaml             # entraînement du PINN
 python scripts/summarize.py pinn_params pinn_nn                          # experiments/summary.md
+python scripts/sweep.py --config configs/sweeps/tau.yaml --jobs 4       # série de runs (sweep)
+python scripts/summarize_sweeps.py tau                                   # experiments/summary_sweeps.md
 pytest -q                                                                # tests
 ruff check . && ruff format .                                            # lint et formatage
 ```
