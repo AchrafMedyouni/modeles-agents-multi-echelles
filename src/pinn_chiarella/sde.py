@@ -68,6 +68,27 @@ def fundamental_demand(delta: Array, kappa: Scalar, kappa3: Scalar) -> Array:
     return -kappa * delta - kappa3 * delta**3
 
 
+def drift_from_demand(
+    demand: Array,
+    m: Array,
+    *,
+    beta: Scalar,
+    alpha: Scalar,
+    gamma: Scalar,
+) -> tuple[Array, Array]:
+    """Drift de l'état (δ, M) pour une demande des fondamentalistes f(δ) déjà évaluée.
+
+    Sert au cas où f est apprise (réseau f_θ) : la structure du reste du drift est conservée.
+    Fonctionne aussi bien avec des tableaux NumPy qu'avec des tenseurs PyTorch.
+
+    Renvoie :
+        (a_δ, a_M) avec a_δ = f(δ) + β tanh(γM) et a_M = α (a_δ − M).
+    """
+    a_delta = demand + beta * _tanh(gamma * m)
+    a_m = alpha * (a_delta - m)
+    return a_delta, a_m
+
+
 def drift(
     delta: Array,
     m: Array,
@@ -78,7 +99,7 @@ def drift(
     alpha: Scalar,
     gamma: Scalar,
 ) -> tuple[Array, Array]:
-    """Drift de l'état (δ, M).
+    """Drift de l'état (δ, M) du modèle de Chiarella, avec f(δ) = −κδ − κ₃δ³.
 
     Fonctionne aussi bien avec des tableaux NumPy (simulation) qu'avec des tenseurs PyTorch
     (résidu de Fokker-Planck, paramètres entraînables) : c'est la seule définition du drift.
@@ -86,9 +107,8 @@ def drift(
     Renvoie :
         (a_δ, a_M) avec a_δ = f(δ) + β tanh(γM) et a_M = α (a_δ − M).
     """
-    a_delta = fundamental_demand(delta, kappa, kappa3) + beta * _tanh(gamma * m)
-    a_m = alpha * (a_delta - m)
-    return a_delta, a_m
+    demand = fundamental_demand(delta, kappa, kappa3)
+    return drift_from_demand(demand, m, beta=beta, alpha=alpha, gamma=gamma)
 
 
 def diffusion(*, sigma: Scalar, alpha: Scalar) -> tuple[Scalar, Scalar]:
