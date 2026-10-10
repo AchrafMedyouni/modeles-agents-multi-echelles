@@ -1,0 +1,25 @@
+# Données synthétiques, modèle de Chiarella simple (f linéaire), régime stable :
+# α + κ − αβγ = 1 > 0.
+
+seed: 0
+
+# Vrais paramètres du modèle.
+model:
+  kappa: 1.0
+  kappa3: 0.0
+  beta: 0.5
+  sigma: 0.5
+  alpha: 1.0
+  gamma: 2.0
+
+simulation:
+  n_samples: 2000                    # N particules par snapshot
+  dt: 1.0e-3                         # pas d'Euler-Maruyama
+  t_obs: [0.0, 0.5, 1.0, 2.0, 3.0]   # instants observés (entraînement)
+  t_test: 1.5                        # instant non observé (validation de la densité)
+  n_test: 10000                      # particules du snapshot de test (simulation indépendante)
+  init:                              # loi initiale gaussienne de (δ, M)
+    delta_mean: 1.0
+    delta_std: 0.3
+    m_mean: 0.0
+    m_std: 0.3
