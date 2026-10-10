@@ -171,9 +171,7 @@ def plot_parameter_convergence(log: dict[str, Any], path: Path) -> None:
             ax.plot(its, mass.mean(axis=1), color=BLUE, lw=1.2)
             ax.set_ylim(0.8, 1.2)
             ax.set_title("Masse totale de p̃ (cible : 1)")
-            ax.set_xlabel(
-                "itération\n(trait : moyenne sur les instants observés, bande : min à max)"
-            )
+            ax.set_xlabel("itération\n(trait : moyenne des instants,\nbande : min à max)")
             ax.grid(axis="y", color=GRID, lw=0.6)
 
         fig.suptitle(
