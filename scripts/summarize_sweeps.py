@@ -84,9 +84,12 @@ def case_table(logs: list[dict]) -> list[str]:
     ]
     for case, group in cases.items():
         errs = [relative_errors(log) for log in group]
-        sigma = stat([e["sigma"] for e in errs], "+.1%") if "sigma" in errs[0] else "fixé"
+        beta, sigma = (
+            stat([e[p] for e in errs], "+.1%") if p in errs[0] else "fixé"
+            for p in ("beta", "sigma")
+        )
         lines.append(
-            f"| {case} | {len(group)} | {stat([e['beta'] for e in errs], '+.1%')} | {sigma} | "
+            f"| {case} | {len(group)} | {beta} | {sigma} | "
             f"{stat([g['demand']['rmse_data_range'] for g in group], '.3f')} | "
             f"{stat([g['demand']['gain_data_range'] for g in group], '.3f')} |"
         )
