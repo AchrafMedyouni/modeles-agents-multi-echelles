@@ -51,20 +51,23 @@ Références (PDF dans `docs/`) :
   - Demander à l'utilisateur avant de choisir.
 
 ## Structure du dépôt
+Package installable en « src layout » (`pip install -e ".[dev]"`), nom : `pinn_chiarella`.
 ```
-CLAUDE.md
-docs/                 articles PDF
+CLAUDE.md  README.md  pyproject.toml
+docs/                 articles PDF (ne pas modifier)
 reference/            prototype pinn_chiarella.py (ne pas modifier, sert de référence)
-data/raw/  data/processed/
-src/
-  models.py           réseaux (PDF net, MLP terme manquant), paramètres entraînables
+src/pinn_chiarella/
   sde.py              drift/diffusion du modèle + simulateur Euler-Maruyama (données synthétiques)
+  models.py           réseaux (PDF net, MLP terme manquant), paramètres entraînables
   losses.py           résidu Fokker-Planck, loss KL données
   train.py            boucle d'entraînement, lecture d'une config
-  data.py             chargement/prétraitement Telefonica -> snapshots
+  data.py             chargement/prétraitement (synthétique, Telefonica) -> snapshots
+  plotting.py         figures standard
+scripts/              points d'entrée en ligne de commande, fins (la logique vit dans le package)
 configs/*.yaml        une config par expérience (vrais params si synthétique, τ, lr, itérations, seed)
-experiments/<nom>/    sorties : config copiée, log JSON, figures, poids
-tests/
+tests/                tests pytest
+data/                 raw/ (ne jamais modifier), processed/, synthetic/ — non versionnés
+experiments/<nom>/    sorties : config copiée, log JSON, figures, poids — non versionnées
 ```
 
 ## Règles de travail
@@ -83,7 +86,7 @@ tests/
 
 ## Commandes
 ```
-pip install torch numpy scipy matplotlib pyyaml pytest
+pip install -e ".[dev]"
 python -m src.train --config configs/synth_chiarella.yaml
 pytest -q
 ```
