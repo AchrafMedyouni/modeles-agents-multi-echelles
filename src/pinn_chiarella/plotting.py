@@ -139,20 +139,12 @@ def plot_parameter_convergence(log: dict[str, Any], path: Path) -> None:
             ax.axhline(true, color=INK_SECONDARY, lw=1.2, ls=(0, (4, 3)), label="vraie valeur")
             ax.plot(its, values, color=BLUE, lw=2, label="apprise")
             err = (values[-1] - true) / true
-            ax.set_title(f"{PARAM_LABELS.get(name, name)}")
-            ax.text(
-                0.98,
-                0.05,
-                f"vrai {true:g}\nappris {values[-1]:.3f} ({err:+.0%})",
-                transform=ax.transAxes,
-                ha="right",
-                va="bottom",
-                fontsize=8,
-                color=INK_SECONDARY,
+            ax.set_title(
+                f"{PARAM_LABELS.get(name, name)} : {values[-1]:.3f} (vrai {true:g}, {err:+.0%})"
             )
             ax.set_xlabel("itération")
             ax.grid(axis="y", color=GRID, lw=0.6)
-        axes[0].legend(frameon=False, fontsize=8, loc="upper right")
+        axes[0].legend(frameon=False, fontsize=8, loc="center right")
 
         tau = log["tau"]
         for ax, key, title in zip(
@@ -204,9 +196,16 @@ def plot_learned_demand(log: dict[str, Any], path: Path) -> None:
         )
         ax.set_xlabel("δ = P − V")
         ax.set_ylabel("f(δ)")
-        ax.set_title(
-            "Demande des fondamentalistes : apprise et vraie "
-            f"(RMSE dans la zone : {demand['rmse_data_range']:.3f})"
+        ax.set_title("Demande des fondamentalistes : apprise et vraie")
+        ax.text(
+            0.5 * (d_lo + d_hi),
+            0.97,
+            f"RMSE dans la zone : {demand['rmse_data_range']:.3f}",
+            transform=ax.get_xaxis_transform(),
+            ha="center",
+            va="top",
+            fontsize=8,
+            color=INK_SECONDARY,
         )
         ax.legend(frameon=False, loc="upper right")
         path.parent.mkdir(parents=True, exist_ok=True)
