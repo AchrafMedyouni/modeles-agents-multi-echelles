@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -49,6 +50,23 @@ class SyntheticDataset:
     t_paths: np.ndarray | None = None
 
 
+def simulate_test_particles(config: dict[str, Any], times: Sequence[float]) -> np.ndarray:
+    """Simule les particules de test (indépendantes des données d'entraînement) à des instants.
+
+    Ce sont les mêmes particules que le snapshot de test du jeu : même graine, même flux
+    aléatoire. Sert à comparer la densité apprise à un Monte-Carlo à n'importe quel instant.
+
+    Renvoie :
+        Un tableau (len(times), n_test, 2).
+    """
+    params = ChiarellaParams(**config["model"])
+    sim = config["simulation"]
+    init = InitialState(**sim.get("init", {}))
+    rng_test = np.random.default_rng(np.random.SeedSequence(int(config["seed"])).spawn(2)[1])
+    x0_test = sample_initial_state(int(sim["n_test"]), init, rng_test)
+    return simulate(params, x0_test, times, float(sim["dt"]), rng_test)
+
+
 def generate_synthetic(config: dict[str, Any]) -> SyntheticDataset:
     """Simule le jeu de données synthétique décrit par une config (voir configs/).
 
@@ -61,7 +79,7 @@ def generate_synthetic(config: dict[str, Any]) -> SyntheticDataset:
     init = InitialState(**sim.get("init", {}))
     t_obs = np.asarray(sim["t_obs"], dtype=float)
     t_test = float(sim["t_test"])
-    rng_train, rng_test = (np.random.default_rng(s) for s in np.random.SeedSequence(seed).spawn(2))
+    rng_train = np.random.default_rng(np.random.SeedSequence(seed).spawn(2)[0])
 
     # Une seule simulation, enregistrée sur une grille fine contenant les instants observés.
     obs_steps = observation_steps(t_obs, dt)
@@ -70,8 +88,7 @@ def generate_synthetic(config: dict[str, Any]) -> SyntheticDataset:
     x0 = sample_initial_state(int(sim["n_samples"]), init, rng_train)
     paths = simulate(params, x0, path_steps * dt, dt, rng_train)
 
-    x0_test = sample_initial_state(int(sim["n_test"]), init, rng_test)
-    test_snapshot = simulate(params, x0_test, [t_test], dt, rng_test)[0]
+    test_snapshot = simulate_test_particles(config, [t_test])[0]
 
     return SyntheticDataset(
         snapshots=paths[np.searchsorted(path_steps, obs_steps)],

@@ -95,6 +95,8 @@ python scripts/train.py --config configs/pinn_params.yaml     # ajouter --iterat
 python scripts/summarize.py pinn_params pinn_nn             # écrit experiments/summary.md
 python scripts/sweep.py --config configs/sweeps/tau.yaml --jobs 4   # série de runs (4 en parallèle max sur ce Mac)
 python scripts/summarize_sweeps.py tau kappa_sigma          # écrit experiments/summary_sweeps.md
+python scripts/plot_density.py --run instable/tout_inconnu --synth-config configs/synth_instable.yaml --times 4 10   # densité PINN vs Monte-Carlo
+python scripts/plot_coverage.py --config configs/synth_chiarella_cubic.yaml --out experiments/etendue.png          # étendue de δ(t) des données
 pytest -q
 ```
 

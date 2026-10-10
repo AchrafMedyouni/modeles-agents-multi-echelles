@@ -2,10 +2,12 @@
 # Données : scripts/make_synthetic.py sur configs/synth_instable.yaml (vrai β = 1.5).
 
 base: configs/pinn_params.yaml
-iterations: 15000
+iterations: 25000
 
 common:
   data: data/synthetic/synth_instable.npz
+  # Horizon long, domaine plus grand, densités non gaussiennes : réseau de densité élargi.
+  model.density_net: {width: 64, depth: 4}
 
 runs:
   - name: tout_inconnu

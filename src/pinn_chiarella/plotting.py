@@ -230,12 +230,12 @@ def plot_learned_demand(log: dict[str, Any], path: Path) -> None:
         plt.close(fig)
 
 
-def density_marginals(
+def density_grid(
     model: ChiarellaPINN, t: float, n_grid: int = 200
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, float]:
-    """Marginales en δ et en M de la densité PINN à l'instant t, par intégration sur une grille.
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Densité PINN à l'instant t sur une grille du domaine.
 
-    Renvoie (grille δ, marginale δ, grille M, marginale M, masse totale ∫p̃).
+    Renvoie (grille δ (n,), grille M (n,), p̃ (n, n) indexée [δ, M]).
     """
     density = model.density
     d = torch.linspace(float(density.lo[0]), float(density.hi[0]), n_grid, device=density.lo.device)
@@ -244,8 +244,17 @@ def density_marginals(
     x = torch.stack([dd.flatten(), mm.flatten()], dim=1)
     with torch.no_grad():
         p = density(x, torch.full((x.shape[0], 1), float(t), device=x.device))
-    p = p.reshape(n_grid, n_grid).cpu().numpy()
-    d_np, m_np = d.cpu().numpy(), m.cpu().numpy()
+    return d.cpu().numpy(), m.cpu().numpy(), p.reshape(n_grid, n_grid).cpu().numpy()
+
+
+def density_marginals(
+    model: ChiarellaPINN, t: float, n_grid: int = 200
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, float]:
+    """Marginales en δ et en M de la densité PINN à l'instant t, par intégration sur une grille.
+
+    Renvoie (grille δ, marginale δ, grille M, marginale M, masse totale ∫p̃).
+    """
+    d_np, m_np, p = density_grid(model, t, n_grid)
     marg_d = np.trapezoid(p, m_np, axis=1)
     marg_m = np.trapezoid(p, d_np, axis=0)
     return d_np, marg_d, m_np, marg_m, float(np.trapezoid(marg_d, d_np))
@@ -377,6 +386,66 @@ def plot_delta_extent(datasets: dict[str, SyntheticDataset], path: Path) -> None
         axes[0].legend(frameon=False, fontsize=8, loc="upper right")
         fig.suptitle(
             "Zone de δ couverte par les données au cours du temps (points : instants observés)",
+            fontsize=10,
+            x=0.01,
+            ha="left",
+        )
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(path, dpi=150)
+        plt.close(fig)
+
+
+def plot_density_times(
+    model: ChiarellaPINN, samples: dict[float, np.ndarray], t_obs: np.ndarray, path: Path
+) -> None:
+    """Densité PINN contre Monte-Carlo à plusieurs instants : marginales et densité jointe.
+
+    Une ligne par instant. Colonnes : marginale en δ, marginale en M, puis plan (δ, M) avec
+    les particules Monte-Carlo et les lignes de niveau de la densité PINN.
+
+    Arguments :
+        model : modèle entraîné.
+        samples : particules Monte-Carlo indépendantes, (n, 2) par instant.
+        t_obs : instants observés à l'entraînement (pour l'indiquer dans les titres).
+        path : figure de sortie.
+    """
+    with plt.rc_context(STYLE):
+        fig, axes = plt.subplots(
+            len(samples),
+            3,
+            figsize=(13, 3.6 * len(samples)),
+            layout="constrained",
+            squeeze=False,
+        )
+        for row, (t, x) in zip(axes, samples.items(), strict=True):
+            d, m, p = density_grid(model, t)
+            marg_d, marg_m = np.trapezoid(p, m, axis=1), np.trapezoid(p, d, axis=0)
+            mass = float(np.trapezoid(marg_d, d))
+            kind = "instant observé" if np.any(np.isclose(t_obs, t)) else "instant non observé"
+            panels = ((d, marg_d, x[:, 0], "δ = P − V"), (m, marg_m, x[:, 1], "M"))
+            for ax, (grid, marg, values, name) in zip(row, panels, strict=False):
+                ax.hist(
+                    values,
+                    bins=60,
+                    density=True,
+                    color=NEUTRAL_FILL,
+                    edgecolor=SURFACE,
+                    linewidth=0.3,
+                    label=f"Monte-Carlo ({len(values)} particules)",
+                )
+                ax.plot(grid, marg, color=BLUE, lw=2, label="PINN (marginale)")
+                ax.set_xlabel(name)
+                ax.set_ylabel("densité")
+            row[0].set_title(f"t = {t:g} ({kind}) — masse de p̃ : {mass:.3f}")
+            ax = row[2]
+            ax.scatter(x[:, 0], x[:, 1], s=2, color=NEUTRAL_FILL, linewidths=0, rasterized=True)
+            ax.contour(d, m, p.T, levels=6, colors=BLUE, linewidths=1.2)
+            ax.set_xlabel("δ = P − V")
+            ax.set_ylabel("M")
+            ax.set_title("Plan (δ, M) : particules et niveaux de p̃")
+        axes[0, 0].legend(frameon=False, fontsize=8, loc="upper left")
+        fig.suptitle(
+            "Densité PINN et Monte-Carlo indépendant (particules de test)",
             fontsize=10,
             x=0.01,
             ha="left",

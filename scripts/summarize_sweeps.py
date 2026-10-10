@@ -18,7 +18,7 @@ from pinn_chiarella.train import load_run
 ROOT = Path(__file__).resolve().parents[1]
 PARAMS = {"kappa": "κ", "kappa3": "κ₃", "beta": "β", "sigma": "σ"}
 # Sweeps où la demande f est l'objet de l'étude : figure par cas.
-DEMAND_SWEEPS = {"terme_manquant", "couverture"}
+DEMAND_SWEEPS = {"terme_manquant", "couverture", "couverture_precoce"}
 
 
 def relative_rmse(log: dict) -> float:
@@ -116,10 +116,48 @@ def sweep_section(name: str, logs: list[dict]) -> list[str]:
                 f"(gain f − 1), sur {label} (n = {n}) : {corr:+.2f}."
             )
         lines.append("")
+    if name == "instable":
+        stable = load_sweep_logs(ROOT / "experiments" / "kappa_sigma")
+        if stable:
+            lines += regime_comparison(stable, logs)
+        for log in logs:
+            if (ROOT / "experiments" / name / log["run"] / "densite_temps.png").exists():
+                lines.append(
+                    f"Densité PINN contre Monte-Carlo à plusieurs instants : "
+                    f"`{name}/{log['run']}/densite_temps.png`."
+                )
+        lines.append("")
     if name in DEMAND_SWEEPS:
         plot_sweep_demand(logs, ROOT / "experiments" / name / "demande.png")
         lines += [f"Figure : `{name}/demande.png`.", ""]
     return lines
+
+
+def regime_comparison(stable: list[dict], unstable: list[dict]) -> list[str]:
+    """Tableau comparant, cas par cas, les erreurs en régime stable et en régime instable."""
+    lines = [
+        "Comparaison avec le régime stable (sweep kappa_sigma), mêmes cas :",
+        "",
+        "| cas | régime | κ (erreur) | β (erreur) | σ (erreur) | σ²/(2κ) (erreur) |",
+        "|---|---|---|---|---|---|",
+    ]
+    by_case = {log["case"]: log for log in unstable}
+    for ref in stable:
+        if ref["case"] not in by_case:
+            continue
+        for regime, log in (("stable", ref), ("instable", by_case[ref["case"]])):
+            err = relative_errors(log)
+            cells = [
+                f"{log['final'][p]:.3f} ({err[p]:+.1%})" if p in err else "fixé"
+                for p in ("kappa", "beta", "sigma")
+            ]
+            values = {**log["fixed"], **log["final"]}
+            truth = {**log["fixed"], **log["true"]}
+            ratio = values["sigma"] ** 2 / (2 * values["kappa"])
+            true = truth["sigma"] ** 2 / (2 * truth["kappa"])
+            cells.append(f"{(ratio - true) / true:+.1%}")
+            lines.append(f"| {log['case']} | {regime} | " + " | ".join(cells) + " |")
+    return [*lines, ""]
 
 
 def variance_section(runs: list[str]) -> list[str]:
