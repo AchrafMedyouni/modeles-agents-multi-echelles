@@ -45,6 +45,16 @@ def test_liste_explicite_remplace_le_champ_entier():
     }
 
 
+def test_champs_communs_appliques_a_tous_les_runs():
+    sweep = {
+        "common": {"data": "d/z.npz", "training.tau": 5},
+        "runs": [{"name": "a"}, {"name": "b", "set": {"training.tau": 1}}],
+    }
+    a, b = expand_runs(sweep, BASE)
+    assert (a.config["data"], a.config["training"]["tau"]) == ("d/z.npz", 5)
+    assert (b.config["data"], b.config["training"]["tau"]) == ("d/z.npz", 1)
+
+
 def test_la_config_de_base_n_est_pas_modifiee():
     expand_runs({"grid": {"training.tau": [1]}}, BASE)
     assert BASE["training"]["tau"] == 10.0

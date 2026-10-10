@@ -5,6 +5,8 @@ Un sweep est décrit par un YAML (configs/sweeps/<nom>.yaml) :
     base: configs/pinn_params.yaml     # config de base
     iterations: 5000                   # optionnel (5000 par défaut)
     seeds: [0, 1, 2]                   # optionnel (seed de la config de base par défaut)
+    common:                            # optionnel : champs remplacés dans tous les runs
+      data: data/synthetic/autre.npz
     grid:                              # produit cartésien de valeurs...
       training.tau: [1, 10, 100]
     runs:                              # ... ou liste explicite de cas
@@ -67,7 +69,7 @@ def expand_runs(sweep: dict[str, Any], base: dict[str, Any]) -> list[SweepRun]:
     """Développe la description d'un sweep en liste de runs (cas × seeds).
 
     Arguments :
-        sweep : contenu du YAML du sweep (`grid` et/ou `runs`, `seeds`).
+        sweep : contenu du YAML du sweep (`grid` et/ou `runs`, `seeds`, `common`).
         base : config de base, non modifiée.
     """
     cases: list[tuple[str, dict[str, Any]]] = []
@@ -90,7 +92,7 @@ def expand_runs(sweep: dict[str, Any], base: dict[str, Any]) -> list[SweepRun]:
     runs = []
     for (case, overrides), seed in itertools.product(cases, seeds):
         config = copy.deepcopy(base)
-        for path, value in overrides.items():
+        for path, value in {**(sweep.get("common") or {}), **overrides}.items():
             set_by_path(config, path, value)
         config["seed"] = int(seed)
         name = case if len(seeds) == 1 else f"{case}_seed{seed}"

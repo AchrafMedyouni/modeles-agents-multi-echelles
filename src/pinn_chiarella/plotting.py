@@ -347,3 +347,40 @@ def plot_sweep_demand(logs: list[dict[str, Any]], path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(path, dpi=150)
         plt.close(fig)
+
+
+def plot_delta_extent(datasets: dict[str, SyntheticDataset], path: Path) -> None:
+    """Étendue de δ (percentiles 1 à 99) en fonction du temps, pour plusieurs jeux simulés.
+
+    Montre combien de temps les données occupent les grandes valeurs de |δ|. Les points
+    marquent les instants observés de chaque jeu. À droite : zoom sur le début.
+    """
+    colors = (BLUE, ORANGE, "#1baf7a", "#eda100")
+    t_end = max(float(d.t_paths[-1]) for d in datasets.values())
+    with plt.rc_context(STYLE):
+        fig, axes = plt.subplots(1, 2, figsize=(11, 4.2), layout="constrained", sharey=True)
+        for ax, t_max in zip(axes, (t_end, 0.5), strict=True):
+            ax.axhline(0.0, color=GRID, lw=1, zorder=0)
+            for (name, data), color in zip(datasets.items(), colors, strict=False):
+                lo, hi = np.percentile(data.paths[:, :, 0], [1, 99], axis=1)
+                ax.fill_between(data.t_paths, lo, hi, color=color, alpha=0.18, lw=0)
+                ax.plot(data.t_paths, lo, color=color, lw=1.5, label=name)
+                ax.plot(data.t_paths, hi, color=color, lw=1.5)
+                obs = np.percentile(data.snapshots[:, :, 0], [1, 99], axis=1)
+                for edge in obs:
+                    ax.plot(data.t_obs, edge, "o", color=color, ms=5, mec=SURFACE, mew=1)
+            ax.set_xlim(-0.01 * t_max, t_max)
+            ax.set_xlabel("temps t")
+        axes[0].set_ylabel("δ : percentiles 1 et 99")
+        axes[0].set_title("Étendue de δ sur tout l'horizon")
+        axes[1].set_title("Zoom sur le transitoire (t ≤ 0,5)")
+        axes[0].legend(frameon=False, fontsize=8, loc="upper right")
+        fig.suptitle(
+            "Zone de δ couverte par les données au cours du temps (points : instants observés)",
+            fontsize=10,
+            x=0.01,
+            ha="left",
+        )
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(path, dpi=150)
+        plt.close(fig)
