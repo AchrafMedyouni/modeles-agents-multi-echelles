@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+build/
+dist/
+*.egg-info/
+*.egg
+.eggs/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Environnements virtuels
+.venv/
+venv/
+env/
+
+# Données et résultats (se régénèrent : on ne versionne que le code et les configs)
+data/raw/
+data/processed/
+data/synthetic/
+experiments/*
+!experiments/.gitkeep
+*.pt
+*.npz
+
+# Notebooks, système, éditeurs
+.ipynb_checkpoints/
+.DS_Store
+.vscode/
+.idea/
