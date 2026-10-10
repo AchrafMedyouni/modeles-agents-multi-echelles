@@ -88,7 +88,8 @@ experiments/<nom>/    sorties : config copiée, log JSON, figures, poids — non
 ```
 pip install -e ".[dev]"
 python scripts/make_synthetic.py --config configs/synth_chiarella.yaml
-python -m src.train --config configs/synth_chiarella.yaml
+python scripts/train.py --config configs/pinn_params.yaml     # ajouter --iterations 500 pour un run court
+python scripts/summarize.py pinn_params pinn_nn             # écrit experiments/summary.md
 pytest -q
 ```
 

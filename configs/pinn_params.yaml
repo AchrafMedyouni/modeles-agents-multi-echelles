@@ -1,0 +1,28 @@
+# PINN Fokker-Planck, identification de paramètres : f(δ) = −κδ ; κ, β, σ inconnus.
+# Données : configs/synth_chiarella.yaml (vrais κ = 1, β = 0.5, σ = 0.5).
+
+seed: 0
+device: cpu
+data: data/synthetic/synth_chiarella.npz
+
+model:
+  fundamental: linear          # f(δ) = −κδ − κ₃δ³
+  trainable:                   # paramètres inconnus : valeurs initiales
+    kappa: 0.3
+    beta: 0.1
+    sigma: 1.0
+  fixed:                       # paramètres supposés connus
+    kappa3: 0.0
+    alpha: 1.0
+    gamma: 2.0
+  margin: 0.5                  # marge du domaine autour des données
+  density_net: {width: 32, depth: 4}
+
+training:
+  iterations: 15000
+  lr: 1.0e-3
+  lr_decay: 0.3                # StepLR, tous les iterations // 3
+  tau: 10.0                    # poids de L_pde
+  n_collocation: 2000          # points de collocation par itération
+  n_integral: 2000             # points uniformes par instant pour l'intégrale de p̃
+  log_every: 100
