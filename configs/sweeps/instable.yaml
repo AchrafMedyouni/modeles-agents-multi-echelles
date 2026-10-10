@@ -1,0 +1,15 @@
+# Sweep f — régime instable (α + κ − αβγ = −1, cycle limite), horizon long.
+# Données : scripts/make_synthetic.py sur configs/synth_instable.yaml (vrai β = 1.5).
+
+base: configs/pinn_params.yaml
+iterations: 15000
+
+common:
+  data: data/synthetic/synth_instable.npz
+
+runs:
+  - name: tout_inconnu
+  - name: sigma_fixe
+    set:
+      model.trainable: {kappa: 0.3, beta: 0.1}
+      model.fixed: {kappa3: 0.0, alpha: 1.0, gamma: 2.0, sigma: 0.5}

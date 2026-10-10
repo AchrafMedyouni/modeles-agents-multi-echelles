@@ -1,0 +1,21 @@
+# Sweep couverture_precoce — données cubiques à condition initiale large, avec des snapshots
+# précoces (t = 0.05, 0.1, 0.25) : le terme cubique n'agit que pendant le transitoire.
+# σ fixé à sa vraie valeur (il se compense sinon avec β et f, cf. sweep terme_manquant).
+# Données : scripts/make_synthetic.py sur configs/synth_chiarella_cubic_precoce.yaml.
+
+base: configs/pinn_nn.yaml
+iterations: 30000
+
+common:
+  data: data/synthetic/synth_chiarella_cubic_precoce.npz
+
+runs:
+  - name: mlp_sigma_fixe
+    set:
+      model.trainable: {beta: 0.1}
+      model.fixed: {alpha: 1.0, gamma: 2.0, sigma: 0.5}
+  - name: polynome_sigma_fixe
+    set:
+      model.fundamental: linear
+      model.trainable: {kappa: 0.3, kappa3: 0.1, beta: 0.1}
+      model.fixed: {alpha: 1.0, gamma: 2.0, sigma: 0.5}

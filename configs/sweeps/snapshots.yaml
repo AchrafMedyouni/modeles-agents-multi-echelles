@@ -3,6 +3,7 @@
 # Données : scripts/make_synthetic.py sur configs/synth_snap5.yaml et synth_snap8.yaml.
 
 base: configs/pinn_params.yaml
+iterations: 15000
 
 grid:
   data:

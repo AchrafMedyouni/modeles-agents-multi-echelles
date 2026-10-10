@@ -1,0 +1,26 @@
+# Sweep instable : régime α + κ − αβγ = −1 < 0 (β = 1.5). Le point fixe (0, 0) est instable
+# (valeurs propres linéarisées (1 ± i√3)/2, période ≈ 7) : cycle limite attendu. Horizon long.
+
+
+seed: 0
+
+# Vrais paramètres du modèle.
+model:
+  kappa: 1.0
+  kappa3: 0.0
+  beta: 1.5
+  sigma: 0.5
+  alpha: 1.0
+  gamma: 2.0
+
+simulation:
+  n_samples: 2000                    # N particules par snapshot
+  dt: 1.0e-3                         # pas d'Euler-Maruyama
+  t_obs: [0.0, 1.0, 2.0, 3.0, 5.0, 7.0, 10.0]   # instants observés
+  t_test: 4.0                        # instant non observé (validation de la densité)
+  n_test: 10000                      # particules du snapshot de test (simulation indépendante)
+  init:                              # loi initiale gaussienne de (δ, M)
+    delta_mean: 1.0
+    delta_std: 0.3
+    m_mean: 0.0
+    m_std: 0.3

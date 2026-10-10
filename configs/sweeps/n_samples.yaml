@@ -3,6 +3,7 @@
 # et synth_n10000.yaml.
 
 base: configs/pinn_params.yaml
+iterations: 15000
 
 grid:
   data:
